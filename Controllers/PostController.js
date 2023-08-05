@@ -18,11 +18,10 @@ export const getAllPost = async (req, res) => {
   
 
   try {
-    const sevenDaysAgo = new Date();
-sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-const trendingPosts = await PostModel.find({ createdAt: { $gte: sevenDaysAgo } });
-res.status(200).json(trendingPosts)
+    const recentPosts = await PostModel.find({})
+      .sort({ createdAt: -1 }) // Sort by 'createdAt' in descending order (most recent first)
+      .limit(7); // Limit the result to 7 posts
+res.status(200).json(recentPosts)
 
   } catch (error) {
     res.status(500).json(error);
