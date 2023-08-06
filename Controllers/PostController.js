@@ -53,8 +53,33 @@ export const getBlogs= async (req, res) => {
         $limit: 5
       }
     ])
+
+
+    const mostEngagedUsersData = await Promise.all(
+      blogs.map(async (userStats) => {
+        const user = await UserModel.findOne(
+          { _id: userStats._id },
+          { username: 1, profilePicture: 1 }
+        );
+
+        if (user) {
+          return {
+            _id: user._id,
+            username: user.username,
+            profilePicture: user.profilePicture,
+          };
+        }
+
+        return null; // In case the user is not found
+      })
+    );
+
+    // Filter out any null elements (users not found)
+    const filteredData = mostEngagedUsersData.filter((data) => data !== null);
+
+    
    
-res.status(200).json(blogs)
+res.status(200).json(filteredData)
 
   } catch (error) {
     res.status(500).json(error);
