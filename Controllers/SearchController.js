@@ -26,9 +26,31 @@ export const search = async (req, res) => {
           { city: { $regex: query, $options: "i" } },
           { worksAt: { $regex: query, $options: "i" } }
         ]
-      });
-  
-      const result = { post: posts, community: communities, users: users };
+      }).select('-password');;
+
+      const postPromises = posts.map(async (post) => {
+        const user = await UserModel.findOne({ _id: post.userId }, { username: 1, profilePicture: 1 });
+        
+        if (user) {
+            return {
+                userDetails: {
+                    _id: user._id,
+                    username: user.username,
+                    profilePicture: user.profilePicture,
+                },
+                post: post,
+            };
+        }
+
+        return null; // In case the user is not found
+    });
+
+    const postsWithUserDetails = await Promise.all(postPromises);
+
+    // Filter out null values (users not found)
+    const validPosts = postsWithUserDetails.filter(post => post !== null);
+      
+      const result = { posts: validPosts, community: communities, users: users };
       res.status(200).json(result);
     } catch (error) {
       res.status(500).json(error);

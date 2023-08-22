@@ -1,24 +1,27 @@
-import express from 'express'
-const router = express.Router()
-import multer from 'multer'
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, "public/images");
-    },
-    filename: (req, file, cb) => {
-      cb(null, req.body.name);
-    },
-  });
-const upload = multer({ storage: storage });
+import express from "express";
+import cloudinary from "../utils/cloudinary.js";
+import multerConfig from  "../Middleware/multer.js";
 
 
-router.post("/", upload.single("file"), (req, res) => {
-    try {
-      return res.status(200).json("File uploded successfully");
-    } catch (error) {
-      console.error(error);
+const router = express.Router();
+
+router.post("/", multerConfig.single("image"), async (req, res) => {
+  
+  try {
+    // Upload image to cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path);
+    // Create new user
+    let data = {
+      url: result.secure_url,
+      cloudinary_id: result.public_id,
     }
-  });
+    // Save user
+    
+    res.json(data);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "An error occurred during user creation." });
+  }
+});
 
-export default router
+export default router;

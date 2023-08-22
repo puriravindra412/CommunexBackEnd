@@ -5,9 +5,7 @@ const communitySchema=mongoose.Schema(
     {
         name:{type:String,required:true},
         image:String,
-        users:[{
-            userId:String,username:String,profile:String,bio:String,worksAt:String},
-        ],
+        users:[{userId:String}],
         posts:[]
         
     },

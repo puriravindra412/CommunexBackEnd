@@ -18,14 +18,36 @@ export const getAllPost = async (req, res) => {
   
 
   try {
-    const recentPosts = await PostModel.find({})
-      .sort({ createdAt: -1 }) // Sort by 'createdAt' in descending order (most recent first)
-      .limit(7); // Limit the result to 7 posts
-res.status(200).json(recentPosts)
+    const posts = await PostModel.find().sort({ createdAt: -1 }); 
 
-  } catch (error) {
+    const postPromises = posts.map(async (post) => {
+        const user = await UserModel.findOne({ _id: post.userId }, { username: 1, profilePicture: 1 });
+        
+        if (user) {
+            return {
+                userDetails: {
+                    _id: user._id,
+                    username: user.username,
+                    profilePicture: user.profilePicture,
+                },
+                post: post,
+            };
+        }
+
+        return null; // In case the user is not found
+    });
+
+    const postsWithUserDetails = await Promise.all(postPromises);
+
+    // Filter out null values (users not found)
+    const validPosts = postsWithUserDetails.filter(post => post !== null);
+
+    res.status(200).json(validPosts);
+} catch (error) {
+    console.error('Error:', error);
     res.status(500).json(error);
-  }
+}
+
 };
 
 
@@ -57,16 +79,20 @@ export const getBlogs= async (req, res) => {
 
     const mostEngagedUsersData = await Promise.all(
       blogs.map(async (userStats) => {
-        const user = await UserModel.findOne(
-          { _id: userStats._id },
-          { username: 1, profilePicture: 1 }
-        );
-
+        const user = await UserModel.findOne({ _id: userStats._id }, { username: 1, profilePicture: 1 });
+        
         if (user) {
+          const recentPosts = await PostModel.find({ userId: userStats._id })
+            .sort({ createdAt: -1 })
+            .limit(3);
+
           return {
-            _id: user._id,
-            username: user.username,
-            profilePicture: user.profilePicture,
+            user: {
+              _id: user._id,
+              username: user.username,
+              profilePicture: user.profilePicture,
+            },
+            recentPosts: recentPosts,
           };
         }
 
@@ -87,10 +113,70 @@ res.status(200).json(filteredData)
 };
 
 
+export const getPostComments = async (req, res) => {
+   const id=req.params.id
+  
+try {
+    const post = await PostModel.findById(id);
+  
+    const postPromises = post.comments.map(async (comment) => {
+      const user = await UserModel.findOne({ _id: comment.userId }, { username: 1, profilePicture: 1 });
+      
+      if (user) {
+          return {
+              userDetails: {
+                  _id: user._id,
+                  username: user.username,
+                  profilePicture: user.profilePicture,
+              },
+              comment:comment
+          };
+      }
+
+      return null; // In case the user is not found
+  });
+
+  const commentsWithUserDetails= await Promise.all(postPromises);
+
+  // Filter out null values (users not found)
+  const validComments = commentsWithUserDetails.filter(post => post !== null);
+    res.status(200).json(validComments);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
 
 
 
+export const getsavedPosts=async(req,res)=>{
+  const id=req.params.id
+  try {
+    const user = await UserModel.findById(id)
+    
+    const postPromise=user.savedPosts.map(async(savedPost)=>{
+      const post = await PostModel.findOne({id:savedPost._id});
+      
+      const userDetails=await UserModel.findOne({_id:post.userId},{username:1,profilePicture:1})
+      
+      if(userDetails){
+        return{
+          userDetails,
+          post
+        }
+      }
+      
+      return null;
+    });
 
+    const savedPosts= await Promise.all(postPromise)
+    const validSavedPosts = savedPosts.filter(post => post !== null);
+    res.status(200).json(validSavedPosts)
+    
+  } catch (error) {
+    res.status(500).json(error)
+    
+  }
+}
 
 
 
@@ -101,7 +187,29 @@ export const getPost = async (req, res) => {
 
   try {
     const post = await PostModel.findById(id);
-    res.status(200).json(post);
+   
+    
+      const user = await UserModel.findOne({ _id: post.userId }, { username: 1, profilePicture: 1 });
+      
+      let result=[]
+      if (user) {
+        result= {
+              userDetails: {
+                  _id: user._id,
+                  username: user.username,
+                  profilePicture: user.profilePicture,
+              },
+              post: post,}
+            
+      }
+      
+      
+
+  // Filter out null values (users not found)
+  
+
+  res.status(200).json(result);
+    
   } catch (error) {
     res.status(500).json(error);
   }
@@ -171,10 +279,54 @@ export const commentPost = async (req, res) => {
  
 
   try {
-    const Comment = await PostModel.findById(id);
+    const post = await PostModel.findById(id);
     
-      await Comment.updateOne({ $push: { comments:{userId,username,comment}} });
-      res.status(200).json("comment added");
+      await post.updateOne({ $push: { comments:{userId,username,comment}} });
+      const NewPost=await PostModel.findById(id);
+
+
+      const postPromises = NewPost.comments.map(async (comment) => {
+        const user = await UserModel.findOne({ _id: comment.userId }, { username: 1, profilePicture: 1 });
+        
+        if (user) {
+            return {
+                userDetails: {
+                    _id: user._id,
+                    username: user.username,
+                    profilePicture: user.profilePicture,
+                },
+                comment:comment
+            };
+        }
+  
+        return null; // In case the user is not found
+    });
+  
+    const commentsWithUserDetails= await Promise.all(postPromises);
+  
+    // Filter out null values (users not found)
+    const validComments = commentsWithUserDetails.filter(post => post !== null);
+
+      res.status(200).json(validComments);
+   
+    }
+   catch (error) {
+    res.status(500).json(error);
+  }
+};
+
+export const deleteCommentPost = async (req, res) => {
+  const id = req.params.id;
+  
+  const { _id } = req.body;
+
+ 
+
+  try {
+    const Comment = await PostModel.findById(id);
+   
+      await Comment.updateOne({ $pull: { comments:{_id}} });
+      res.status(200).json("comment deleted");
    
     }
    catch (error) {
@@ -187,7 +339,7 @@ export const getTimelinePosts = async (req, res) => {
   const userId = req.params.id;
 
   try {
-    const currentUserPosts = await PostModel.find({ userId: userId });
+    const currentUserPosts = await PostModel.find({ userId: userId }).sort({ createdAt: -1 });
     const followingPosts = await UserModel.aggregate([
       {
         $match: {
@@ -210,14 +362,43 @@ export const getTimelinePosts = async (req, res) => {
         },
       },
     ]);
+    
+    const posts=currentUserPosts.concat(...followingPosts[0].followingPosts) .sort((a, b) => {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+
+    
+
+      const postPromises = posts?.map(async (post) => {
+        const user = await UserModel.findOne({ _id: post.userId });
+        
+        if (user) {
+            return {
+                userDetails: {
+                    _id: user._id,
+                    username: user.username,
+                    profilePicture: user.profilePicture,
+                },
+                post: post,
+            };
+        }
+  
+        return null; // In case the user is not found
+    });
+    const postsWithUserDetails = await Promise.all(postPromises);
+  
+    
+    
+  
+
+  // Filter out null values (users not found)
+  const validPosts = postsWithUserDetails.filter(post => post !== null)
 
     res
       .status(200)
-      .json(currentUserPosts.concat(...followingPosts[0].followingPosts)
-      .sort((a,b)=>{
-          return b.createdAt - a.createdAt;
-      })
-      );
+      .json(validPosts)
+     
   } catch (error) {
     res.status(500).json(error);
   }

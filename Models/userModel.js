@@ -38,7 +38,8 @@ const UserSchema = mongoose.Schema(
         followers: [],
         community: [],
         hashtag: [],
-        following: []
+        following: [],
+        savedPosts:[]
     },
     {timestamps: true}
 )

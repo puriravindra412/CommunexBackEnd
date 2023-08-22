@@ -68,7 +68,7 @@ export const deleteUser = async (req, res) => {
 export const followUser = async (req, res) => {
   const id = req.params.id;
   const { _id } = req.body;
-  console.log(id, _id)
+  
   if (_id == id) {
     res.status(403).json("Action Forbidden");
   } else {
@@ -157,6 +157,27 @@ export const addHashtagUser = async (req, res) => {
         res.status(200).json("hashtag added!");
       } else {
         res.status(403).json("adlready added to community");
+      }
+    } catch (error) {
+      res.status(500).json(error);
+    }
+ 
+};
+
+export const savePost = async (req, res) => {
+  const id = req.params.id;
+  const { _id } = req.body;
+ console.log(id)
+    try {
+      const user = await UserModel.findById(id);
+      if (!user.savedPosts.includes(_id)) {
+        await user.updateOne({ $push: { savedPosts: _id} });
+        
+        res.status(200).json("post Saved!");
+      } else {
+        await user.updateOne({ $pull: { savedPosts: _id} });
+        
+        res.status(200).json("post Unsaved!");
       }
     } catch (error) {
       res.status(500).json(error);
