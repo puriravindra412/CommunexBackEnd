@@ -154,7 +154,7 @@ export const getsavedPosts=async(req,res)=>{
     const user = await UserModel.findById(id)
     
     const postPromise=user.savedPosts.map(async(savedPost)=>{
-      const post = await PostModel.findOne({id:savedPost._id});
+      const post = await PostModel.findOne({_id:savedPost});
       
       const userDetails=await UserModel.findOne({_id:post.userId},{username:1,profilePicture:1})
       
