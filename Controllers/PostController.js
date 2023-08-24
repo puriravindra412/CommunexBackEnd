@@ -50,6 +50,46 @@ export const getAllPost = async (req, res) => {
 
 };
 
+export const getTrendingPosts=async(req,res)=>{
+  try {
+    const  posts = await PostModel.aggregate([
+      {
+        $addFields: {
+          totalInteractions: { $sum: [{ $size: "$likes" }, { $size: "$comments" }] },
+        },
+      },
+      {
+        $sort: { totalInteractions: -1 },
+      },
+      {
+        $limit: 5,
+      },
+    ]);
+
+    const postPromises = posts.map(async (post) => {
+      const user = await UserModel.findOne({ _id: post.userId }, { username: 1, profilePicture: 1 });
+      
+      if (user) {
+          return {
+              userDetails: {
+                  _id: user._id,
+                  username: user.username,
+                  profilePicture: user.profilePicture,
+              },
+              post: post,
+          };
+      }
+
+      return null; // In case the user is not found
+  });
+
+  const postsWithUserDetails = await Promise.all(postPromises);
+  const trendingPosts=postsWithUserDetails.filter((post)=>post!==null);
+  res.status(200).json(trendingPosts)
+  } catch (error) {
+    
+  }
+}
 
 export const getBlogs= async (req, res) => {
   
