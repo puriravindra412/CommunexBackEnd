@@ -443,3 +443,72 @@ export const getTimelinePosts = async (req, res) => {
     res.status(500).json(error);
   }
 };
+
+export const getCommunityTimelinePosts = async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    
+    const followingPosts = await UserModel.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(userId),
+        },
+      },
+      {
+        $lookup: {
+          from: "posts",
+          localField: "community",
+          foreignField: "community",
+          as: "followingPosts",
+        },
+      },
+      
+      {
+        $project: {
+          followingPosts: 1,
+          _id: 0,
+        },
+      },
+    ]);
+    
+    const posts=(followingPosts[0].followingPosts) .sort((a, b) => {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+
+    
+
+      const postPromises = posts?.map(async (post) => {
+        const user = await UserModel.findOne({ _id: post.userId });
+        
+        if (user) {
+            return {
+                userDetails: {
+                    _id: user._id,
+                    username: user.username,
+                    profilePicture: user.profilePicture,
+                },
+                post: post,
+            };
+        }
+  
+        return null; // In case the user is not found
+    });
+    const postsWithUserDetails = await Promise.all(postPromises);
+  
+    
+    
+  
+
+  // Filter out null values (users not found)
+  const validPosts = postsWithUserDetails.filter(post => post !== null)
+
+    res
+      .status(200)
+      .json(validPosts)
+     
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
